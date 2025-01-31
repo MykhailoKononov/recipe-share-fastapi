@@ -1,0 +1,34 @@
+services:
+  db:
+    container_name: "db"
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    restart: always
+    environment:
+      - POSTGRES_USER=${USER}
+      - POSTGRES_PASSWORD=${PASS}
+      - POSTGRES_DB=postgres${DB}
+    ports:
+      - "5444:5432"
+    networks:
+      - "custom"
+
+  db_test:
+    container_name: "db_test"
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    restart: always
+    environment:
+      - POSTGRES_USER=${TUSER}
+      - POSTGRES_PASSWORD=${TPASS}
+      - POSTGRES_DB=${TDB}
+    ports:
+      - "5433:5432"
+    networks:
+      - "custom"
+
+networks:
+  custom:
+    driver: bridge
