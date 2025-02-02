@@ -8,6 +8,9 @@ from sqlalchemy.orm import selectinload
 from app.database.models import User
 from asyncpg.exceptions import UniqueViolationError
 
+from app.schemas.user import UserCreate
+from app.services.hashing import Hasher
+
 
 class UserRepository:
     def __init__(self, db: AsyncSession):
@@ -29,25 +32,40 @@ class UserRepository:
         """
         print(f"Error: {e}")
         await self.db.rollback()
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    async def create_user(self, username: str, email: str) -> User:
+    async def create_user(self, **kwargs: UserCreate) -> User:
         """
-        Creates a new comment for a post.
+        Creates a new user in the database.
 
-        :param username: Wanted username.
-        :param email: Wanted email.
-        :return: The created User object.
+        :param kwargs: user data
+        :return: User object
         """
         try:
+            create_params = {key: value for key, value in kwargs.items() if value is not None}
+
+            if not all(key in create_params for key in ["username", "email", "password"]):
+                raise HTTPException(status_code=400, detail="Provide all required fields to create an account")
+
+            existing_user = await self.db.execute(select(User).where((User.username == create_params["username"]) |
+                                                                     (User.email == create_params["email"])))
+            if existing_user.scalars().first():
+                raise HTTPException(status_code=400, detail="User with this email or username already exists")
+
+            hashed_password = Hasher.get_password_hash(str(create_params["password"]))
+
             db_user = User(
-                username=username,
-                email=email,
+                email=create_params["email"],
+                username=create_params["username"],
+                hashed_password=hashed_password,
+                first_name=create_params.get("first_name"),
+                last_name=create_params.get("last_name")
             )
             self.db.add(db_user)
             await self.db.commit()
             await self.db.refresh(db_user)
             return db_user
+
         except Exception as e:
             await self.handle_exception(e)
 

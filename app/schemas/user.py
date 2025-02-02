@@ -5,8 +5,8 @@ import uuid
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
     username: str
+    password: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
@@ -15,15 +15,27 @@ class UserResponse(BaseModel):
     user_id: uuid.UUID
     email: EmailStr
     username: str
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    birthday: Optional[str] = None
+    phone: Optional[str] = None
+    about: Optional[str] = None
+
+
+class UserSignIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str

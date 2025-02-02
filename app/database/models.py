@@ -22,6 +22,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String(150), nullable=False, unique=True)
     hashed_password: Mapped[str] = mapped_column(String(225), nullable=True)
+    refresh_token: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     first_name: Mapped[str] = mapped_column(String(50), nullable=True)
