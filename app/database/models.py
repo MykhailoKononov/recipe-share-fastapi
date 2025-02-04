@@ -1,6 +1,8 @@
 import uuid
 
 from enum import StrEnum
+from typing import List
+
 from sqlalchemy import String, Date, Boolean, Text, ForeignKey, DateTime, func, Enum
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -39,10 +41,10 @@ class User(Base):
 class Recipe(Base):
     __tablename__ = "recipes"
 
-    recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(100))
-    description: Mapped[Text] = mapped_column(Text)
-    ingredients: Mapped[JSONB] = mapped_column(JSONB)
+    description: Mapped[Text] = mapped_column(Text, nullable=True)
+    ingredients: Mapped[dict[str, str]] = mapped_column(JSONB)
     image_url: Mapped[str] = mapped_column(String(255), nullable=True)
     user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id"))
 

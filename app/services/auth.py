@@ -7,12 +7,11 @@ from typing import Union
 from typing import Optional
 from jose import jwt
 from datetime import datetime, timedelta
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.database.session import get_db
 from app.services.hashing import Hasher
-from app.schemas.user import UserCreate
+from app.schemas.user_schema import UserCreate
 from app.database.models import User
 
 
