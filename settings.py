@@ -13,3 +13,8 @@ TEST_DATABASE_URL = \
 SECRET_KEY: str = os.getenv("SECRET_KEY")
 ALGORITHM: str = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRES_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRES_MINUTES"))
+
+
+CLOUD_NAME: str = os.getenv("CLOUD_NAME")
+API_KEY: str = os.getenv("API_KEY")
+API_SECRET: str = os.getenv("API_SECRET")

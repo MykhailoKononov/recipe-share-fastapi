@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.database.models import User
 from asyncpg.exceptions import UniqueViolationError
 
-from app.schemas.user import UserCreate
+from app.schemas.user_schema import UserCreate
 from app.services.hashing import Hasher
 
 
@@ -34,7 +34,7 @@ class UserRepository:
         await self.db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    async def create_user(self, **kwargs: UserCreate) -> User:
+    async def create_user(self, **kwargs) -> User:
         """
         Creates a new user in the database.
 
