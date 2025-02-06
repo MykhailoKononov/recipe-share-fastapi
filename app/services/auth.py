@@ -55,7 +55,7 @@ def create_refresh_token(data: dict, expires_delta: Optional[float] = None):
 
 
 async def authenticate_user(session: AsyncSession, username: str, password: str) -> Union[User, False]:
-    result = await session.execute(select(User).where((User.email == username) | (User.username == username)))
+    result = await session.execute(select(User).where(((User.email == username) | (User.username == username)) & (User.is_active==True)))
     user = result.scalars().first()
     if user is None or not Hasher.verify_password(password, user.hashed_password):
         return False
