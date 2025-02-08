@@ -10,10 +10,10 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.services.hashing import Hasher
+from app.services.auth_services.hashing import Hasher
 from app.schemas.user_schema import UserCreate
 from app.database.models import User
-
+from app.services.user_services import UserService
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = settings.SECRET_KEY
@@ -60,31 +60,6 @@ async def authenticate_user(session: AsyncSession, username: str, password: str)
     if user is None or not Hasher.verify_password(password, user.hashed_password):
         return False
     return user
-
-
-async def signup(session: AsyncSession, **kwargs: UserCreate) -> User:
-    create_params = {key: value for key, value in kwargs.items() if value is not None}
-
-    if not all(key in create_params for key in ["username", "email", "password"]):
-        raise HTTPException(status_code=400, detail="Provide all required fields to create an account")
-
-    existing_user = await session.execute(select(User)
-                                          .where((User.username == create_params["username"])
-                                                 | (User.email == create_params["email"])))
-    if existing_user.scalar():
-        raise HTTPException(status_code=400, detail="User already exists")
-    hashed_password = Hasher.get_password_hash(str(create_params["password"]))
-    new_user = User(
-        email=create_params["email"],
-        username=create_params["username"],
-        hashed_password=hashed_password,
-        first_name=create_params.get("first_name"),
-        last_name=create_params.get("last_name")
-    )
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
-    return new_user
 
 
 async def signin(username: str, password: str, session: AsyncSession) -> dict:

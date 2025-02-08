@@ -13,7 +13,7 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="signin")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="sign-in")
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
@@ -34,15 +34,3 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         return user
     except JWTError:
         raise credentials_exception
-
-
-async def admin_required(current_user: User) -> User:
-    if current_user.role != Role.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have access to this action")
-    return current_user
-
-
-async def moderate_required(current_user: User) -> User:
-    if current_user.role not in [Role.admin, Role.moderator]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have access to this action")
-    return current_user

@@ -7,16 +7,16 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class UserResponse(BaseModel):
     user_id: uuid.UUID
     email: EmailStr
     username: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -39,3 +39,9 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
+
+
+class UserIsActive(BaseModel):
+    email: EmailStr
+    username: str
+    is_active: bool
