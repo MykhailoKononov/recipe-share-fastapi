@@ -5,12 +5,12 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 
-from app.services.dependencies import get_current_user
+from app.services.dependencies import get_current_user, moderate_required
 
 from app.database.models import User, Role
 from app.database.session import get_db
 from app.repository.user_repo import UserRepository
-from app.schemas.user_schema import UserCreate, UserResponse, UserUpdate
+from app.schemas.user_schema import UserCreate, UserResponse, UserUpdate, UserIsActive
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.auth import signin, signup, signout
 from app.services.roles import check_access
@@ -20,7 +20,7 @@ user_router = APIRouter(tags=['users'])
 logger = getLogger(__name__)
 
 
-@user_router.get("/user-get", response_model=UserResponse, status_code=status.HTTP_200_OK)
+@user_router.get("/get-info", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def get_user(
         username: Optional[EmailStr | str] = None,
         session: AsyncSession = Depends(get_db),
@@ -69,7 +69,7 @@ async def update_user(
     return updated_user
 
 
-@user_router.delete("/delete_account", status_code=status.HTTP_200_OK)
+@user_router.delete("/delete-account", status_code=status.HTTP_200_OK)
 async def delete_user(
         username: Optional[EmailStr | str] = None,
         session: AsyncSession = Depends(get_db),
@@ -98,16 +98,16 @@ async def delete_user(
 auth_router = APIRouter(tags=["auth"])
 
 
-@auth_router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@auth_router.post("/sign-up", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_create: UserCreate, session: AsyncSession = Depends(get_db)) -> dict:
     return await signup(session, **user_create.model_dump(exclude_unset=True))
 
 
-@auth_router.post("/signin", status_code=status.HTTP_200_OK)
+@auth_router.post("/sign-in", status_code=status.HTTP_200_OK)
 async def login(form: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_db)) -> dict:
     return await signin(form.username, form.password, session)
 
 
-@auth_router.post("/signout", status_code=status.HTTP_200_OK)
+@auth_router.post("/sign-out", status_code=status.HTTP_200_OK)
 async def logot(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_db)) -> dict:
     return await signout(current_user, session)
