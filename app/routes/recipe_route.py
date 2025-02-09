@@ -4,14 +4,14 @@ from typing import Optional
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
-from fastapi import APIRouter, UploadFile, File, status, Depends, Form, Body
+from fastapi import APIRouter, UploadFile, status, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import User
 from app.database.session import get_db
 from app.repository.recipe_repo import RecipeRepository
 from app.schemas.recipe_schema import RecipeResponse, RecipeCreate
-from app.services.dependencies import get_current_user
+from app.services.auth_services.dependencies import get_current_user
 
 recipe_router = APIRouter(tags=['recipes'])
 

@@ -1,4 +1,3 @@
-from fastapi import HTTPException, status
 from sqlalchemy import select, update
 
 from app.database.models import User
@@ -23,11 +22,10 @@ class ModeratorRepository(UserRepository):
     async def retrieve_user(self, username: str) -> User:
         try:
             retrieved_user = await self.db.execute(update(User)
-                                         .where((User.email == username) | (User.username == username))
-                                         .values(is_active=True)
-                                         .returning(User))
+                                                   .where((User.email == username) | (User.username == username))
+                                                   .values(is_active=True)
+                                                   .returning(User))
             await self.db.commit()
             return retrieved_user.scalars().first()
         except Exception as e:
             await self.handle_exception(e)
-

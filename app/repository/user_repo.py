@@ -1,10 +1,9 @@
 import uuid
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.database.models import User
-
 from app.services.auth_services.hashing import Hasher
 
 
@@ -30,22 +29,14 @@ class UserRepository:
         await self.db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    async def create_user(self, **kwargs) -> User:
+    async def create_user(self, create_params: dict) -> User:
         """
         Creates a new user in the database.
 
-        :param kwargs: user data
+        :param create_params: user data
         :return: User object
         """
         try:
-            create_params = {key: value for key, value in kwargs.items() if value is not None}
-            if not all(key in create_params for key in ["username", "email", "password"]):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Provide all required fields to create an account")
-            existing_user = await self.get_active_user_by_username(create_params["email"])
-            if existing_user:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                    detail="User with this email or username already exists")
             create_params["hashed_password"] = Hasher.get_password_hash(create_params["password"])
             db_user = User(
                 email=create_params["email"],
@@ -62,20 +53,33 @@ class UserRepository:
         except Exception as e:
             await self.handle_exception(e)
 
-    async def get_active_user_by_id(self, user_id: uuid.UUID) -> User:
+    async def get_user_by_email(self, email: str) -> User:
         """
         Gets user from database by id
 
-        :param user_id: Entered user_id
+        :param email: Entered email
         :return: User object.
         """
         try:
-            user = await self.db.execute(select(User).where((User.user_id == user_id) & (User.is_active == True)))
+            user = await self.db.execute(select(User).where(User.email == email))
             return user.scalars().first()
         except Exception as e:
             await self.handle_exception(e)
 
-    async def get_active_user_by_username(self, username: str) -> User:
+    async def get_user_by_username(self, username: str) -> User:
+        """
+        Gets user from database by id
+
+        :param username: Entered user_id
+        :return: User object.
+        """
+        try:
+            user = await self.db.execute(select(User).where(User.username == username))
+            return user.scalars().first()
+        except Exception as e:
+            await self.handle_exception(e)
+
+    async def get_active_user_by_username_or_email(self, username: str) -> User:
         """
         Gets user from database by email
 
@@ -89,20 +93,17 @@ class UserRepository:
         except Exception as e:
             await self.handle_exception(e)
 
-    async def update_user_by_username(self, username: str, **kwargs) -> User:
+    async def update_active_user_by_username_or_email(self, username: str, update_params: dict) -> User:
         """
         Allows to change user params not depending on nulls
 
-        :param username: email or username of the user who's parameters aare going to be changed
-        :param kwargs: parameters that need to be changed
+        :param username: email or username of the user whose parameters are going to be changed
+        :param update_params: parameters that need to be changed
         :return: User object with updated parameters
         """
         try:
-            update_params = {key: value for key, value in kwargs.items() if value is not None}
-            if not update_params:
-                raise HTTPException(status_code=400, detail="No fields provided for update")
             updating_query = (update(User)
-                              .where((User.email == username) | (User.username == username))
+                              .where(((User.email == username) | (User.username == username)) & User.is_active == True)
                               .values(**update_params)
                               .returning(User))
             updated_user = await self.db.execute(updating_query)

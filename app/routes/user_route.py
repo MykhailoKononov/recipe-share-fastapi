@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 
-from app.services.dependencies import get_current_user
+from app.services.auth_services.dependencies import get_current_user
 
 from app.database.models import User
 from app.database.session import get_db
@@ -27,7 +27,7 @@ async def get_user(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ) -> UserResponse:
-    return await UserService(UserRepository(db)).get_user(current_user, username)
+    return await UserService(UserRepository(db)).get_user_info(current_user, username)
 
 
 @user_router.patch("/update", response_model=UserResponse, status_code=status.HTTP_201_CREATED, )
@@ -53,9 +53,10 @@ async def delete_user(
 auth_router = APIRouter(tags=["auth"])
 
 
-@auth_router.post("/sign-up", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@auth_router.post("/sign-up", status_code=status.HTTP_201_CREATED)
 async def register(user_create: UserCreate, db: AsyncSession = Depends(get_db)) -> dict:
-    return await UserRepository(db).create_user(**user_create.model_dump(exclude_unset=True))
+    await UserService(UserRepository(db)).create_account(user_create)
+    return {"msg": "Account successfully created"}
 
 
 @auth_router.post("/sign-in", status_code=status.HTTP_200_OK)
