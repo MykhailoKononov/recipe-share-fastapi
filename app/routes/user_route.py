@@ -12,7 +12,7 @@ from app.database.session import get_db
 from app.repository.user_repo import UserRepository
 from app.schemas.user_schema import UserCreate, UserResponse, UserUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.auth_services.auth import signin, signout
+from app.services.auth_services.auth import signin, signout, signup
 
 from app.services.user_services import UserService
 
@@ -53,10 +53,10 @@ async def delete_user(
 auth_router = APIRouter(tags=["auth"])
 
 
-@auth_router.post("/sign-up", status_code=status.HTTP_201_CREATED)
+@auth_router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_create: UserCreate, db: AsyncSession = Depends(get_db)) -> dict:
-    await UserService(UserRepository(db)).create_account(user_create)
-    return {"msg": "Account successfully created"}
+    print(f"1: {user_create}")
+    return await signup(db, user_create)
 
 
 @auth_router.post("/sign-in", status_code=status.HTTP_200_OK)

@@ -1,11 +1,10 @@
 import uuid
 
 from enum import StrEnum
-from typing import List
 
-from sqlalchemy import String, Date, Boolean, Text, ForeignKey, DateTime, func, Enum
+from sqlalchemy import String, Date, Boolean, Text, ForeignKey, DateTime, func, Enum, Integer
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
 
 
 Base = declarative_base()
@@ -44,8 +43,25 @@ class Recipe(Base):
     recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(100))
     description: Mapped[Text] = mapped_column(Text, nullable=True)
-    ingredients: Mapped[dict[str, str]] = mapped_column(JSONB)
     image_url: Mapped[str] = mapped_column(String(255), nullable=True)
     user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id"))
 
     author = relationship("User", back_populates="recipes")
+    ingredients = relationship("RecipeIngredient", back_populates="recipe")
+
+
+class Ingredient(Base):
+    __tablename__ = "ingredients"
+
+    ingredient_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100))
+
+
+class RecipeIngredient(Base):
+    __tablename__ = "recipe_ingredients"
+
+    recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.recipe_id"), primary_key=True)
+    ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.ingredient_id"), primary_key=True)
+    quantity: Mapped[str] = mapped_column(String(50))
+
+    recipe = relationship("Recipe", back_populates="ingredients")

@@ -14,11 +14,11 @@ from app.routes.admin_route import admin_router
 # create instance of the app
 app = FastAPI(title="project-lms")
 
-app.include_router(user_router, tags=["users"])
-app.include_router(auth_router, tags=["auth"])
-app.include_router(recipe_router, tags=["recipes"])
-app.include_router(moderator_router, tags=["moderator"])
-app.include_router(admin_router, tags=["admin"])
+app.include_router(user_router, prefix="/user")
+app.include_router(auth_router, prefix="/auth")
+app.include_router(recipe_router, prefix="/recipes")
+app.include_router(moderator_router, prefix="/moderator")
+app.include_router(admin_router, prefix="/admin")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -1,6 +1,6 @@
 services:
   db:
-    container_name: "db"
+    container_name: "recipe_db"
     image: postgres:16-alpine
     env_file:
       - .env
@@ -15,7 +15,7 @@ services:
       - "custom"
 
   db_test:
-    container_name: "db_test"
+    container_name: "recipe_db_test"
     image: postgres:16-alpine
     env_file:
       - .env

@@ -3,11 +3,11 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from app.database.models import User
+from app.database.models import User, Role
 from app.services.auth_services.hashing import Hasher
 
 
-class UserRepository:
+class BaseRepository:
     def __init__(self, db: AsyncSession):
         """
         Initializes the repository with a database session.
@@ -17,7 +17,7 @@ class UserRepository:
         """
         self.db = db
 
-    async def handle_exception(self, e):
+    async def handle_exception(self, e: Exception):
         """
         Handles exceptions by printing the error message, rolling back the transaction, and raising an HTTPException.
 
@@ -25,9 +25,12 @@ class UserRepository:
         :type e: Exception
         :raises HTTPException: Always raises an HTTPException with a 500 status code.
         """
-        print(f"Error: {e}")
+        print(f"Database Error: {e}")
         await self.db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+class UserRepository(BaseRepository):
 
     async def create_user(self, create_params: dict) -> User:
         """
@@ -120,5 +123,47 @@ class UserRepository:
                                                  .returning(User))
             await self.db.commit()
             return deleted_user.scalars().first()
+        except Exception as e:
+            await self.handle_exception(e)
+
+
+class ModeratorRepository(UserRepository):
+
+    async def get_user_by_username_or_email(self, username: str) -> User:
+        """
+        Gets user from database by email
+
+        :param username: Entered username or email
+        :return: User object.
+        """
+        try:
+            user = await self.db.execute(select(User).where((User.email == username) | (User.username == username)))
+            return user.scalars().first()
+        except Exception as e:
+            await self.handle_exception(e)
+
+    async def retrieve_user(self, username: str) -> User:
+        try:
+            retrieved_user = await self.db.execute(update(User)
+                                                   .where((User.email == username) | (User.username == username))
+                                                   .values(is_active=True)
+                                                   .returning(User))
+            await self.db.commit()
+            return retrieved_user.scalars().first()
+        except Exception as e:
+            await self.handle_exception(e)
+
+
+class AdminRepository(ModeratorRepository):
+
+    async def promote_to_moderator(self, username: str):
+        try:
+            promoted_user = await self.db.execute(update(User)
+                                                  .where(((User.username == username) | (User.email == username)) &
+                                                         (User.is_active == True))
+                                                  .values(role=Role.moderator)
+                                                  .returning(User))
+            await self.db.commit()
+            return promoted_user.scalars().first()
         except Exception as e:
             await self.handle_exception(e)

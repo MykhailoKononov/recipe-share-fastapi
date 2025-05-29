@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 
 from app.database.models import User, Role
-from app.repository.moderator_repo import ModeratorRepository
+from app.repository.user_repo import ModeratorRepository
 
 
 class ModeratorService:

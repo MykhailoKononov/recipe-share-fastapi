@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import User
 from app.database.session import get_db
-from app.repository.admin_repo import AdminRepository
+from app.repository.user_repo import AdminRepository
 from app.services.auth_services.dependencies import get_current_user
 from app.services.admin_service import AdminService
 

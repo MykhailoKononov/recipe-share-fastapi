@@ -13,7 +13,7 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="sign-in")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/sign-in")
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):

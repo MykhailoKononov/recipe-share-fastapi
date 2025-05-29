@@ -2,6 +2,7 @@ import datetime
 
 import settings
 
+from fastapi import status
 from passlib.context import CryptContext
 from typing import Union
 from typing import Optional
@@ -10,10 +11,11 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.services.auth_services.hashing import Hasher
+
+from app.repository.user_repo import UserRepository
 from app.schemas.user_schema import UserCreate
+from app.services.auth_services.hashing import Hasher
 from app.database.models import User
-from app.services.user_services import UserService
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = settings.SECRET_KEY
@@ -60,6 +62,19 @@ async def authenticate_user(session: AsyncSession, username: str, password: str)
     if user is None or not Hasher.verify_password(password, user.hashed_password):
         return False
     return user
+
+
+async def signup(db: AsyncSession, data: UserCreate) -> User:
+    create_params = data.model_dump(exclude_unset=True)
+    print(f"2: {create_params}")
+    existing_email = await UserRepository(db).get_user_by_email(create_params["email"])
+    if existing_email:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User with this email already exists")
+    existing_username = await UserRepository(db).get_user_by_username(create_params["username"])
+    if existing_username:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User with this username already exists")
+    print(f"3: {create_params}")
+    return await UserRepository(db).create_user(create_params)
 
 
 async def signin(username: str, password: str, session: AsyncSession) -> dict:
