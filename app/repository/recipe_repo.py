@@ -1,8 +1,8 @@
+from typing import List, Sequence, Dict
 import uuid
 
-from fastapi import HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.models import Recipe, Ingredient, RecipeIngredient
 from app.repository.user_repo import BaseRepository
@@ -19,65 +19,72 @@ class RecipeRepository(BaseRepository):
                 user_id=user_id
             )
 
-            self.db.add(db_recipe)
-            await self.db.commit()
-            await self.db.refresh(db_recipe)
+            self.session.add(db_recipe)
+            await self.session.commit()
+            await self.session.refresh(db_recipe)
             return db_recipe
         except Exception as e:
             await self.handle_exception(e)
 
-
-class IngredientRepository(BaseRepository):
-
-    async def get_ingredient(self, name: str) -> Ingredient:
+    async def get_ingredients_by_name(self, names: List[str]) -> Sequence[Ingredient]:
         try:
-            clear_name = name.lower().strip()
+            norm_names = [name.strip().lower() for name in names]
 
-            query = select(Ingredient).where(Ingredient.name == clear_name)
-            result = await self.db.execute(query)
-            ingredient = result.scalars().first()
-            return ingredient
+            if not norm_names:
+                return []
+
+            stmt = select(Ingredient).filter(Ingredient.name.in_(norm_names))
+
+            result = await self.session.execute(stmt)
+            return result.scalars().all()
         except Exception as e:
             await self.handle_exception(e)
 
-    async def create_ingredient(self, name: str) -> Ingredient:
+    async def create_ingredients_bulk(self, names: list[str]) -> list[Ingredient]:
         try:
-            clear_name = name.lower().strip()
+            ingredients = [Ingredient(name=name) for name in names]
+            self.session.add_all(ingredients)
+            await self.session.commit()
+            for ing in ingredients:
+                await self.session.refresh(ing)
+            return ingredients
 
-            ingredient = Ingredient(name=clear_name)
-            self.db.add(ingredient)
-            await self.db.commit()
-            await self.db.refresh(ingredient)
-            return ingredient
         except Exception as e:
             await self.handle_exception(e)
 
-    async def get_or_create_ingredient(self, name: str):
+    async def add_ingredients_to_recipe(
+            self,
+            recipe_id: uuid.UUID,
+            ingredients_map: Dict[int, str]
+    ) -> list[RecipeIngredient]:
         try:
-            clear_name = name.lower().strip()
+            recipe_ingredients = [
+                RecipeIngredient(
+                    recipe_id=recipe_id,
+                    ingredient_id=ingredient_id,
+                    quantity=quantity
+                )
+                for ingredient_id, quantity in ingredients_map.items()
+            ]
 
-            query = select(Ingredient).where(Ingredient.name == clear_name)
-            result = await self.db.execute(query)
-            ingredient = result.scalars().first()
+            self.session.add_all(recipe_ingredients)
+            await self.session.commit()
 
-            if not ingredient:
-                ingredient = Ingredient(name=name)
-                self.db.add(ingredient)
-                await self.db.commit()
-                await self.db.refresh(ingredient)
+            return recipe_ingredients
 
-            return ingredient
         except Exception as e:
             await self.handle_exception(e)
 
-    async def add_ingredient_to_recipe(self, recipe_id: uuid.UUID, ingredient_id: int, quantity: str):
+    async def fetch_all_user_recipes(self, user_id: uuid.UUID) -> Sequence[Recipe]:
         try:
-            recipe_ingredient = RecipeIngredient(
-                recipe_id=recipe_id,
-                ingredient_id=ingredient_id,
-                quantity=quantity
-            )
-            self.db.add(recipe_ingredient)
-            await self.db.commit()
+            stmt = (select(Recipe).
+                    options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient),
+                            selectinload(Recipe.author)).
+                    where(Recipe.user_id == user_id)
+                    )
+
+            recipes = await self.session.execute(stmt)
+            return recipes.scalars().all()
+
         except Exception as e:
             await self.handle_exception(e)

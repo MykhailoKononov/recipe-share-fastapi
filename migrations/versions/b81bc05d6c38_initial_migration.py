@@ -1,8 +1,8 @@
 """initial_migration
 
-Revision ID: b3a76104ff07
+Revision ID: b81bc05d6c38
 Revises: 
-Create Date: 2025-05-27 19:52:38.832348
+Create Date: 2025-06-05 19:44:41.909963
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b3a76104ff07'
+revision: str = 'b81bc05d6c38'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -23,7 +23,8 @@ def upgrade() -> None:
     op.create_table('ingredients',
     sa.Column('ingredient_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.PrimaryKeyConstraint('ingredient_id')
+    sa.PrimaryKeyConstraint('ingredient_id'),
+    sa.UniqueConstraint('name')
     )
     op.create_table('users',
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -38,6 +39,7 @@ def upgrade() -> None:
     sa.Column('birthday', sa.Date(), nullable=True),
     sa.Column('phone', sa.String(length=14), nullable=True),
     sa.Column('role', sa.Enum('admin', 'moderator', 'user', name='role'), nullable=False),
+    sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('about', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('user_id'),

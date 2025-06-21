@@ -31,6 +31,7 @@ class User(Base):
     birthday: Mapped[Date] = mapped_column(Date, nullable=True)
     phone: Mapped[str] = mapped_column(String(14), nullable=True)
     role: Mapped[Role] = mapped_column(Enum(Role, name="role"), default=Role.user, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     about: Mapped[str] = mapped_column(Text, nullable=True)
 
@@ -41,27 +42,40 @@ class Recipe(Base):
     __tablename__ = "recipes"
 
     recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title: Mapped[str] = mapped_column(String(100))
-    description: Mapped[Text] = mapped_column(Text, nullable=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
     image_url: Mapped[str] = mapped_column(String(255), nullable=True)
-    user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id"))
+    user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
 
     author = relationship("User", back_populates="recipes")
-    ingredients = relationship("RecipeIngredient", back_populates="recipe")
+    ingredients = relationship(
+        "RecipeIngredient",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class Ingredient(Base):
     __tablename__ = "ingredients"
 
     ingredient_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+
+    recipe_links = relationship(
+        "RecipeIngredient",
+        back_populates="ingredient",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
 
-    recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.recipe_id"), primary_key=True)
-    ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.ingredient_id"), primary_key=True)
-    quantity: Mapped[str] = mapped_column(String(50))
-
+    recipe_id: Mapped[UUID] = mapped_column( UUID(as_uuid=True), ForeignKey("recipes.recipe_id"), primary_key=True)
+    ingredient_id: Mapped[int] = mapped_column( Integer, ForeignKey("ingredients.ingredient_id"), primary_key=True)
+    quantity: Mapped[str] = mapped_column(String(50), nullable=False)
     recipe = relationship("Recipe", back_populates="ingredients")
+
+    ingredient = relationship("Ingredient", back_populates="recipe_links")

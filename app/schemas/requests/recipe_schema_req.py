@@ -1,13 +1,9 @@
 import json
+from typing import Optional, List
 
 from pydantic import BaseModel, model_validator
-from typing import Optional, Dict, List
-import uuid
 
-
-class IngredientSchema(BaseModel):
-    name: str
-    quantity: str
+from app.schemas.responses.recipe_schema_resp import IngredientSchema
 
 
 class RecipeCreate(BaseModel):
@@ -21,11 +17,3 @@ class RecipeCreate(BaseModel):
         if isinstance(value, str):
             return cls(**json.loads(value))
         return value
-
-
-class RecipeResponse(BaseModel):
-    title: str
-    description: Optional[str] = None
-    ingredients: List[IngredientSchema]
-    image_url: Optional[str] = None
-    user_id: uuid.UUID
