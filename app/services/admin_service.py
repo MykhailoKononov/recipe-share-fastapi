@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 
 from app.database.models import User, Role
-from app.repository.admin_repo import AdminRepository
+from app.repository.user_repo import AdminRepository
 
 
 class AdminService:
