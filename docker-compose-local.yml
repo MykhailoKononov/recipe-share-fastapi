@@ -2,8 +2,6 @@ services:
   db:
     container_name: "db"
     image: postgres:16-alpine
-    env_file:
-      - .env
     restart: always
     environment:
       - POSTGRES_USER=${USER}
@@ -12,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - "custom"
+      - custom
     volumes:
       - pg_data_dev:/var/lib/postgresql/data
       - ./etc/init-exporter.sh:/docker-entrypoint-initdb.d/init-exporter.sh:ro
@@ -37,7 +35,8 @@ services:
     container_name: prometheus
     restart: unless-stopped
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
     volumes:
       - ./etc/dev/prometheus/prometheus-config.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -56,6 +55,20 @@ services:
     volumes:
       - ./etc/dev/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
     restart: unless-stopped
+    networks:
+      - custom
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo.yml", "--target=all", "--storage.trace.backend=local", "--storage.trace.local.path=/var/tempo", "--auth.enabled=false" ]
+    ports:
+      - 4317:4317   # otlp http
+      - 4318:4318   # otlp grpc
+    volumes:
+      - ./etc/dev/tempo/tempo-config.yaml:/etc/tempo.yml
+    depends_on:
+      - loki
     networks:
       - custom
 
@@ -104,6 +117,8 @@ services:
       - "9100:9100"
     networks:
       - custom
+    depends_on:
+      - grafana
 
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
@@ -117,6 +132,8 @@ services:
       - "9187:9187"
     networks:
       - custom
+    depends_on:
+      - grafana
 
 networks:
   custom:

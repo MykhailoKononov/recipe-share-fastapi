@@ -26,28 +26,20 @@ user_router = APIRouter(tags=['users'])
 logger = getLogger(__name__)
 
 
-@user_router.delete("/delete-account", status_code=status.HTTP_200_OK)
-async def delete_user(
-        username: Optional[EmailStr | str] = None,
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)
-) -> dict:
-    await UserService(UserRepository(db)).delete_user(current_user, username)
-    return {"detail": "User was deleted successfully"}
-
-
 auth_router = APIRouter(tags=["auth"])
 
 
-@auth_router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def register(user_create: UserCreate, session: AsyncSession = Depends(get_db)) -> dict:
+@auth_router.post("/signup", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
+async def register(user_create: UserCreate, session: AsyncSession = Depends(get_db)) -> APIResponse:
     user = await signup(session, user_create)
 
     await send_verification_email(user)
 
-    return {
-        "msg": "Account created successfully! Check your inbox to verify your email",
-    }
+    return APIResponse(
+        status="success",
+        data=UserResponse.model_validate(user),
+        message="Account created successfully! Check your inbox to verify your email",
+    )
 
 
 @auth_router.post("/login", status_code=status.HTTP_200_OK)
@@ -62,7 +54,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends(),
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unsupported grant_type")
 
     if not user:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials or token")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     user_role = user.role.value
     allowed_scopes = ROLE_SCOPES[user_role]
@@ -102,7 +94,7 @@ async def refresh_access_token(request: Request = None,
     new_access_token = create_access_token(str(user.user_id), allowed_scopes)
 
     return APIResponse(
-        success=True,
+        status="success",
         message="Access token refreshed",
         data=Token(access_token=new_access_token, token_type="Bearer").model_dump(exclude_unset=True)
     )
@@ -142,7 +134,7 @@ async def read_my_profile(
     Если у токена нет "read" ― вернётся 401/403 на этапе Security.
     """
     return APIResponse(
-        success=True,
+        status="success",
+        data=UserResponse.model_dump(current_user),
         message="User profile fetched",
-        data=UserResponse.from_orm(current_user)
     )

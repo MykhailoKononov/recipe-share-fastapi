@@ -9,16 +9,8 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # 1) Logs FastAPI
-  - job_name: fastapi
-    static_configs:
-      - targets:
-        - localhost
-        labels:
-          job: fastapi
-          __path__: /app/logs/*log
 
-  # 2) System logs
+  # 1) System logs
   - job_name: system
     static_configs:
       - targets:
@@ -27,7 +19,7 @@ scrape_configs:
           job: varlogs
           __path__: /var/log/*log
 
-  # 3) Docker-logs
+  # 2) Docker-logs
   - job_name: docker
     pipeline_stages:
       - docker: {}

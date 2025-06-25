@@ -23,19 +23,24 @@ async def read_my_profile(current_user: User = Security(get_current_user, scopes
     It is protected with "user" scope in access token.
     """
     return APIResponse(
-        success=True,
+        status="success",
         message="User profile fetched",
         data=UserResponse.model_validate(current_user)
     )
 
 
-@profile_router.patch("/update-profile", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@profile_router.patch("/update-profile", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
 async def update_user(
         user_update: UserUpdate,
         session: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)
-) -> UserResponse:
-    return await UserService(UserRepository(session)).update_user(current_user, user_update)
+) -> APIResponse:
+    user = await UserService(UserRepository(session)).update_user(current_user, user_update)
+    return APIResponse(
+        status="success",
+        data=UserResponse.model_validate(user),
+        message="Your profile data was updated successfully"
+    )
 
 
 @profile_router.get("/my-recipes", response_model=APIResponse, status_code=status.HTTP_200_OK)
@@ -43,14 +48,11 @@ async def read_my_recipes(
         current_user: User = Security(get_current_user, scopes=["user"]),
         session: AsyncSession = Depends(get_db)
 ) -> APIResponse:
-    """
-    Get current user's recipes
-    """
     recipe_responses = await RecipeService(RecipeRepository(session)).get_user_recipes(current_user.user_id)
 
     return APIResponse(
-        success=True,
-        message="User recipes fetched",
+        status="success",
         data=recipe_responses,
+        message="User recipes fetched",
     )
 

@@ -1,3 +1,5 @@
+import re
+from datetime import datetime, date
 from typing import Optional
 
 from fastapi import HTTPException
@@ -7,6 +9,9 @@ from starlette import status
 from app.schemas.responses.user_schema_resp import LETTER_MATCH_PATTERN, PASSWORD_PATTERN
 
 
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -14,14 +19,35 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     about: Optional[str] = None
 
+    @model_validator(mode="before")
+    def at_least_one_field(cls, values):
+        if not values or all(v is None for v in values.values()):
+            raise ValueError("at least one field must be provided")
+        return values
+
     @field_validator("first_name", "last_name")
     @classmethod
     def validate_name_and_surname(cls, value: str):
-        if not value and LETTER_MATCH_PATTERN.match(value):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Name should contain only letters"
-            )
+        if not LETTER_MATCH_PATTERN.match(value):
+            raise ValueError("must contain only letters")
+
+    @field_validator("birthday")
+    @classmethod
+    def validate_birthday_format(cls, v):
+        if v is None:
+            return v
+        if not DATE_PATTERN.match(v):
+            raise ValueError("Must be in YYYY-MM-DD format")
+        try:
+            parsed = datetime.strptime(v, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("Invalid date")
+
+        today = date.today()
+        if parsed >= today:
+            raise ValueError("Birthday must be before today")
+
+        return v
 
 
 class UserCreate(BaseModel):
@@ -37,10 +63,7 @@ class UserCreate(BaseModel):
         required_fields = ["email", "username", "password"]
         for field in required_fields:
             if field not in values or values[field] is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"{field.capitalize()} is required!"
-                )
+                raise ValueError(f"{field.capitalize()} is required!")
             return values
 
     @field_validator("password")

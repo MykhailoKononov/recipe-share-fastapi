@@ -1,13 +1,28 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     DEBUG: bool
 
-    # db
+    # db_urls
     LOCAL_DATABASE_URL: str
     HOST_DATABASE_URL: str
     TEST_DATABASE_URL: str
+
+    # prod_db
+    USER: str
+    PASS: str
+    HOST: str
+    PORT: int
+    DB: str
+
+    # test_db
+    TUSER: str
+    TPASS: str
+    THOST: str
+    TPORT: int
+    TDB: str
 
     # jwt
     SECRET_KEY: str
@@ -35,7 +50,7 @@ class Settings(BaseSettings):
 
     BACKEND_URL: str
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=os.path.join(os.path.dirname(__file__), ".env"), extra="ignore")
 
 
 Config = Settings()
