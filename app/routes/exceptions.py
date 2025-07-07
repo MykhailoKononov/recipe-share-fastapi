@@ -15,7 +15,7 @@ async def custom_validation_exception_handler(
         field = ".".join(loc)
         errors.append(f"{field or 'body'}: {err['msg']}")
     payload = APIResponse(
-        status="error",
+        success=False,
         message="Validation failed",
         errors=errors
     )

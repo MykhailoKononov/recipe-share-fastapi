@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import datetime, date
 from typing import Optional
 
@@ -86,3 +87,29 @@ one lowercase letter and one digit."
                 detail=f"Name and surname must contain only letters"
             )
         return value
+
+
+class ForgetPasswordRequest(BaseModel):
+    username: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+    confirm_password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str | None):
+        if not PASSWORD_PATTERN.match(value):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Password must contain at least 8 characters, including one uppercase letter, \
+one lowercase letter and one digit.")
+        return value
+
+    @model_validator(mode="after")
+    def check_passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self

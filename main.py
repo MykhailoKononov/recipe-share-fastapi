@@ -15,7 +15,6 @@ from opentelemetry.propagate import inject
 
 from app.routes.moderator_route import moderator_router
 from app.routes.auth_route import user_router, auth_router
-from app.routes.recipe_route import recipe_router
 from app.routes.admin_route import admin_router
 from app.routes.profile_route import profile_router
 from utils.prometheus_logging import PrometheusMiddleware, metrics, setting_otlp
@@ -128,7 +127,6 @@ if not Config.DEBUG:
 app.include_router(profile_router, prefix="/profile")
 app.include_router(user_router, prefix="/user")
 app.include_router(auth_router, prefix="/auth")
-app.include_router(recipe_router, prefix="/recipes")
 app.include_router(moderator_router, prefix="/moderator")
 app.include_router(admin_router, prefix="/admin")
 app.include_router(test_router)

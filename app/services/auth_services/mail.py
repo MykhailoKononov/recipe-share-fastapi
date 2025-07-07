@@ -1,6 +1,6 @@
 from config import Config
 
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from fastapi_mail import FastMail, ConnectionConfig
 
 mail_config = ConnectionConfig(
     MAIL_USERNAME=Config.MAIL_USERNAME,
@@ -10,19 +10,10 @@ mail_config = ConnectionConfig(
     MAIL_SERVER=Config.MAIL_SERVER,
     MAIL_FROM_NAME=Config.MAIL_FROM_NAME,
     MAIL_STARTTLS=Config.MAIL_STARTTLS,
-    MAIL_SSL_TLS=Config.MAIL_SSL_TLS
+    MAIL_SSL_TLS=Config.MAIL_SSL_TLS,
+    TEMPLATE_FOLDER='./templates/mail'
 )
 
-mail = FastMail(
+fm = FastMail(
     config=mail_config
 )
-
-
-async def send_email(recipient: str, subject: str, body: str):
-    message = MessageSchema(
-        recipients=[recipient],
-        subject=subject,
-        body=body,
-        subtype=MessageType.html
-    )
-    await mail.send_message(message)

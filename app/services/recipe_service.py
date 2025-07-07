@@ -1,79 +1,79 @@
-from typing import Dict
 import uuid
+from typing import Optional
+import cloudinary
+import cloudinary.uploader
 
-from app.database.models import Recipe, Ingredient
+from fastapi import HTTPException, status, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models import Recipe, User
 from app.repository.recipe_repo import RecipeRepository
-from app.schemas.responses.recipe_schema_resp import IngredientSchema, RecipeResponse
-from app.schemas.requests.recipe_schema_req import RecipeCreate
+from app.schemas.requests.recipe_schema_req import RecipeUpdate
 
 
 class RecipeService:
     def __init__(self, repository: RecipeRepository):
         self.repository = repository
 
-    async def create_recipe(self, user_id: uuid.UUID, body: RecipeCreate, image_url: str) -> Recipe:
-        data = body.model_dump(exclude_unset=True)
-        new_recipe = await self.repository.create_recipe(
-            user_id=user_id,
-            data=data,
-            image_url=image_url
-        )
-        await self.repository.session.commit()
-        await self.repository.session.refresh(new_recipe)
-        return new_recipe
+    async def update_recipe(self, recipe_id: uuid.UUID, payload: RecipeUpdate, current_user: User) -> Recipe:
+        recipe = await self.repository.get_recipe_by_id(recipe_id)
 
-    async def add_ingredients(
-            self,
-            new_recipe: Recipe,
-            ingredients_data: list[IngredientSchema]
-    ) -> dict[Ingredient, str]:
+        if not recipe:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe does not exist")
 
-        names = [ing.name for ing in ingredients_data]
-        quantities_map: Dict[str, str] = {ing.name: ing.quantity for ing in ingredients_data}
+        if recipe.user_id != current_user.user_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You can't modify others' recipes")
 
-        existing_ings = await self.repository.get_ingredients_by_name(names)
-        existing_names = [ing.name for ing in existing_ings]
-
-        to_create = [name for name in names if name not in existing_names]
-
-        new_ings = []
-        if to_create:
-            new_ings = await self.repository.create_ingredients_bulk(to_create)
-
-        all_ings = list(existing_ings) + new_ings
-
-        all_ings_map = {ing.ingredient_id: quantities_map[ing.name] for ing in all_ings}
-        ings_to_return = {ing: quantities_map[ing.name] for ing in all_ings}
-
-        await self.repository.add_ingredients_to_recipe(
-            recipe_id=new_recipe.recipe_id,
-            ingredients_map=all_ings_map
-        )
-
-        await self.repository.session.commit()
-        return ings_to_return
-
-    async def get_user_recipes(self, user_id: uuid.UUID):
-        recipes = await self.repository.fetch_all_user_recipes(user_id)
-
-        recipe_responses: list[RecipeResponse] = []
-        for recipe in recipes:
-            ingr_list = []
-            for ri in recipe.ingredients:
-                ingr_list.append({
-                    "name": ri.ingredient.name,
-                    "quantity": ri.quantity
-                })
-
-            recipe_responses.append(
-                RecipeResponse(
-                    recipe_id=recipe.recipe_id,
-                    title=recipe.title,
-                    description=recipe.description,
-                    ingredients=ingr_list,
-                    image_url=recipe.image_url,
-                    user_id=recipe.user_id
-                )
+        if "title" in payload.model_fields_set and payload.title is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Title cannot be null"
             )
-        return recipe_responses
 
+        if "ingredients" in payload.model_fields_set:
+            if payload.ingredients is None or len(payload.ingredients) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Recipe must contain at least one ingredient"
+                )
+
+        simple_data = payload.model_dump(exclude_unset=True, exclude={"ingredients", "recipe_id"})
+        for field, val in simple_data.items():
+            setattr(recipe, field, val)
+
+        if "ingredients" in payload.model_fields_set:
+            await self.repository.update_ingredients(recipe, payload.ingredients)
+
+        self.repository.session.add(recipe)
+        await self.repository.session.commit()
+        await self.repository.session.refresh(recipe)
+        return recipe
+
+    async def update_recipe_photo(
+            self,
+            recipe_id: uuid.UUID,
+            file: Optional[UploadFile],
+            current_user: User,
+            session: AsyncSession
+    ) -> (Recipe, str):
+        recipe = await self.repository.get_recipe_by_id(recipe_id)
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+        if recipe.user_id != current_user.user_id:
+            raise HTTPException(status_code=403, detail="You can't modify others' recipes")
+
+        if file:
+            # Загружаем в Cloudinary
+            result = cloudinary.uploader.upload(file.file)
+            image_url = result["secure_url"]
+            recipe.image_url = image_url
+            action = "updated"
+        else:
+            # Удаляем фото
+            recipe.image_url = None
+            action = "removed"
+
+        session.add(recipe)
+        await session.commit()
+        await session.refresh(recipe)
+        return recipe, action

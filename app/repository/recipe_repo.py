@@ -1,77 +1,59 @@
-from typing import List, Sequence, Dict
+from typing import List, Sequence, Dict, Optional
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 
 from app.database.models import Recipe, Ingredient, RecipeIngredient
 from app.repository.user_repo import BaseRepository
+from app.schemas.requests.recipe_schema_req import RecipeCreate
+from app.schemas.responses.recipe_schema_resp import IngredientSchema
 
 
 class RecipeRepository(BaseRepository):
 
-    async def create_recipe(self, user_id: uuid.UUID, data: dict, image_url: str) -> Recipe:
+    async def create_recipe(self, user_id: uuid.UUID, body: RecipeCreate, image_url: str) -> Recipe:
         try:
             db_recipe = Recipe(
-                title=data["title"],
-                description=data.get("description"),
+                title=body.title,
+                description=body.description,
                 image_url=image_url,
                 user_id=user_id
             )
 
             self.session.add(db_recipe)
-            await self.session.commit()
-            await self.session.refresh(db_recipe)
+            await self.session.flush()
             return db_recipe
         except Exception as e:
             await self.handle_exception(e)
 
-    async def get_ingredients_by_name(self, names: List[str]) -> Sequence[Ingredient]:
-        try:
-            norm_names = [name.strip().lower() for name in names]
-
-            if not norm_names:
-                return []
-
-            stmt = select(Ingredient).filter(Ingredient.name.in_(norm_names))
-
-            result = await self.session.execute(stmt)
-            return result.scalars().all()
-        except Exception as e:
-            await self.handle_exception(e)
-
-    async def create_ingredients_bulk(self, names: list[str]) -> list[Ingredient]:
-        try:
-            ingredients = [Ingredient(name=name) for name in names]
-            self.session.add_all(ingredients)
-            await self.session.commit()
-            for ing in ingredients:
-                await self.session.refresh(ing)
-            return ingredients
-
-        except Exception as e:
-            await self.handle_exception(e)
-
-    async def add_ingredients_to_recipe(
+    async def add_ingredients(
             self,
-            recipe_id: uuid.UUID,
-            ingredients_map: Dict[int, str]
-    ) -> list[RecipeIngredient]:
+            recipe: Recipe,
+            ingredients_data: List[IngredientSchema]
+    ) -> None:
+        for ing in ingredients_data:
+            q = await self.session.execute(
+                select(Ingredient).where(Ingredient.name == ing.name)
+            )
+            ingr_obj = q.scalar_one_or_none()
+            if not ingr_obj:
+                ingr_obj = Ingredient(name=ing.name)
+                self.session.add(ingr_obj)
+                await self.session.flush()
+            recipe.ingredients.append(
+                RecipeIngredient(ingredient=ingr_obj, quantity=ing.quantity)
+            )
+
+    async def get_recipe_by_id(self, recipe_id: uuid.UUID) -> Optional[Recipe]:
         try:
-            recipe_ingredients = [
-                RecipeIngredient(
-                    recipe_id=recipe_id,
-                    ingredient_id=ingredient_id,
-                    quantity=quantity
-                )
-                for ingredient_id, quantity in ingredients_map.items()
-            ]
-
-            self.session.add_all(recipe_ingredients)
-            await self.session.commit()
-
-            return recipe_ingredients
-
+            stmt = (select(Recipe).options(
+                selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient),
+                selectinload(Recipe.author)
+            ).where(Recipe.recipe_id == recipe_id)
+                    )
+            recipe = await self.session.execute(stmt)
+            return recipe.scalar_one_or_none()
         except Exception as e:
             await self.handle_exception(e)
 
@@ -88,3 +70,35 @@ class RecipeRepository(BaseRepository):
 
         except Exception as e:
             await self.handle_exception(e)
+
+    async def update_ingredients(
+            self,
+            recipe: Recipe,
+            new_ings: List[IngredientSchema]
+    ) -> None:
+
+        existing_map = {ri.name: ri for ri in recipe.ingredients}
+
+        new_names = {ing.name for ing in new_ings}
+
+        for name, ri in list(existing_map.items()):
+            if name not in new_names:
+                recipe.ingredients.remove(ri)
+
+        for ing in new_ings:
+            if ing.name in existing_map:
+                existing_map[ing.name].quantity = ing.quantity
+            else:
+                q = await self.session.execute(
+                    select(Ingredient).where(Ingredient.name == ing.name)
+                )
+
+                ingr_obj = q.scalar_one_or_none()
+                if not ingr_obj:
+                    ingr_obj = Ingredient(name=ing.name)
+                    self.session.add(ingr_obj)
+                    await self.session.flush()
+
+                recipe.ingredients.append(
+                    RecipeIngredient(ingredient=ingr_obj, quantity=ing.quantity)
+                )

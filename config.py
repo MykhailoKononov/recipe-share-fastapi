@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str
     MAIL_STARTTLS: bool
     MAIL_SSL_TLS: bool
+    FORGET_PASSWORD_LINK_EXPIRE_MINUTES: int
 
     BACKEND_URL: str
 

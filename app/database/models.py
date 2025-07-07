@@ -79,3 +79,7 @@ class RecipeIngredient(Base):
     recipe = relationship("Recipe", back_populates="ingredients")
 
     ingredient = relationship("Ingredient", back_populates="recipe_links")
+
+    @property
+    def name(self) -> str:
+        return self.ingredient.name

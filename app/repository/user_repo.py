@@ -119,7 +119,6 @@ class UserRepository(BaseRepository):
         :return: User object with updated parameters
         """
         try:
-            print(update_params)
             updating_query = (update(User)
                               .where((User.user_id == user_id) & User.is_active == True)
                               .values(**update_params)

@@ -21,6 +21,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngin
 from sqlalchemy.orm import sessionmaker
 
 
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+
 
 class TestDatabase:
     def __init__(self):
@@ -50,14 +53,9 @@ class TestDatabase:
         return self._session_maker
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop():
-    """Переопределяем event_loop на SelectorEventLoop (для Windows)."""
-    if sys.platform.startswith("win"):
-        policy = WindowsSelectorEventLoopPolicy()
-        loop = policy.new_event_loop()
-    else:
-        loop = asyncio.new_event_loop()
+    loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
