@@ -94,7 +94,6 @@ class ForgetPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    token: str
     password: str
     confirm_password: str
 

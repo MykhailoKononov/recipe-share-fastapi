@@ -1,4 +1,5 @@
 import sys
+import uuid
 from asyncio import WindowsSelectorEventLoopPolicy
 
 import pytest
@@ -6,12 +7,14 @@ import pytest_asyncio
 import asyncio
 import contextlib
 
-from typing import Any, AsyncGenerator, Callable
+from typing import Any, AsyncGenerator, Callable, Optional, List
 
 from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
 from sqlalchemy import select
 
+from app.services.auth_services.auth import create_refresh_token, create_access_token
+from app.services.auth_services.hashing import Hasher
 from main import app
 from app.database.models import Base, User
 from app.database.session import get_db
@@ -99,3 +102,42 @@ def get_user_from_database() -> Callable[..., Any]:
             result = await session.execute(select(User).filter_by(**filters))
             return result.scalar_one_or_none()
     return _get
+
+
+@pytest_asyncio.fixture(scope="function")
+def create_test_user() -> Callable[..., Any]:
+    async def _create(
+        username: str = "johndoe",
+        email: str = "john@example.com",
+        role: str = "user",
+        is_verified: bool = False,
+        with_refresh: bool = False
+    ) -> User:
+        hashed_pass = Hasher.get_password_hash("Test1234")
+        user = User(
+            user_id=uuid.uuid4(),
+            username=username,
+            email=email,
+            hashed_password=hashed_pass,
+            role=role,
+            is_verified=is_verified,
+        )
+        async for session in _get_test_db():
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
+            if with_refresh:
+                token = create_refresh_token(str(user.user_id))
+                user.refresh_token = token
+                session.add(user)
+                await session.commit()
+                await session.refresh(user)
+
+            return user
+    return _create
+
+
+def create_test_auth_headers_for_user(user_id: str, scopes: Optional[List[str]] = None) -> dict[str, str]:
+    access_token = create_access_token(user_id, scopes)
+    return {"Authorization": f"Bearer {access_token}"}

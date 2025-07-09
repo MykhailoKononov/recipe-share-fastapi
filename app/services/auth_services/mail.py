@@ -1,6 +1,12 @@
+import os
+
+import config
 from config import Config
 
 from fastapi_mail import FastMail, ConnectionConfig
+
+
+TEMPLATE_FOLDER = os.path.join(config.BASE_DIR, 'templates', 'mail')
 
 mail_config = ConnectionConfig(
     MAIL_USERNAME=Config.MAIL_USERNAME,
@@ -11,7 +17,7 @@ mail_config = ConnectionConfig(
     MAIL_FROM_NAME=Config.MAIL_FROM_NAME,
     MAIL_STARTTLS=Config.MAIL_STARTTLS,
     MAIL_SSL_TLS=Config.MAIL_SSL_TLS,
-    TEMPLATE_FOLDER='./templates/mail'
+    TEMPLATE_FOLDER=TEMPLATE_FOLDER
 )
 
 fm = FastMail(
