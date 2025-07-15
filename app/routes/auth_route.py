@@ -19,8 +19,6 @@ from app.services.auth_services.auth import (
 
 from config import ROLE_SCOPES
 
-user_router = APIRouter(tags=['users'])
-
 logger = getLogger(__name__)
 
 
