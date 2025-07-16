@@ -1,83 +1,66 @@
-import sys
+import io
 import uuid
-from asyncio import WindowsSelectorEventLoopPolicy
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
 import asyncio
 import contextlib
 
-from typing import Any, AsyncGenerator, Callable, Optional, List
+from main import app
+from config import Config
+from app.services.auth_services.auth import create_refresh_token, create_access_token
+from app.services.auth_services.hashing import Hasher
+from app.database.models import Base, User, Recipe, RecipeIngredient, Ingredient
+from app.database.session import get_db
 
+from PIL import Image
+from typing import Any, AsyncGenerator, Callable, Optional, List, Dict
 from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
 from sqlalchemy import select
-
-from app.services.auth_services.auth import create_refresh_token, create_access_token
-from app.services.auth_services.hashing import Hasher
-from main import app
-from app.database.models import Base, User
-from app.database.session import get_db
-from config import Config
-
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, selectinload
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 
-if sys.platform.startswith("win"):
-    asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+@contextlib.asynccontextmanager
+async def get_root_engine():
+    engine = create_async_engine(Config.TEST_DATABASE_URL, echo=True)
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
 
 
-class TestDatabase:
-    def __init__(self):
-        self._engine: AsyncEngine = create_async_engine(Config.TEST_DATABASE_URL, future=True, echo=True)
-        self._session_maker = sessionmaker(
-            bind=self._engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
-
-    @contextlib.asynccontextmanager
-    async def session(self):
-        async with self._session_maker() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-            finally:
-                await session.close()
-
-    def get_engine(self):
-        return self._engine
-
-    def get_session_maker(self):
-        return self._session_maker
+@contextlib.asynccontextmanager
+async def get_root_async_session():
+    engine = create_async_engine(Config.TEST_DATABASE_URL, echo=True)
+    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    try:
+        async with async_session() as session:
+            yield session
+    finally:
+        await engine.dispose()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
-test_db = TestDatabase()
-
-
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def clear_database():
-    engine = test_db.get_engine()
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    async with get_root_engine() as engine:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
     yield
 
 
 async def _get_test_db() -> AsyncGenerator[AsyncSession, None]:
-    async with test_db.session() as session:
+    async with get_root_async_session() as session:
         yield session
 
 
@@ -105,6 +88,18 @@ def get_user_from_database() -> Callable[..., Any]:
 
 
 @pytest_asyncio.fixture(scope="function")
+def get_recipe_from_database() -> Callable[..., Any]:
+    async def _get(recipe_id: uuid.UUID) -> Recipe | None:
+        async for session in _get_test_db():
+            result = await session.execute(select(Recipe).options(
+                selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient),
+                selectinload(Recipe.author)
+            ).where(Recipe.recipe_id == recipe_id))
+            return result.scalar_one_or_none()
+    return _get
+
+
+@pytest_asyncio.fixture(scope="function")
 def create_test_user() -> Callable[..., Any]:
     async def _create(
         username: str = "johndoe",
@@ -118,6 +113,8 @@ def create_test_user() -> Callable[..., Any]:
             user_id=uuid.uuid4(),
             username=username,
             email=email,
+            first_name="john",
+            last_name="doe",
             hashed_password=hashed_pass,
             role=role,
             is_verified=is_verified,
@@ -138,6 +135,70 @@ def create_test_user() -> Callable[..., Any]:
     return _create
 
 
+@pytest_asyncio.fixture(scope="function")
+def create_test_recipe() -> Callable[..., Any]:
+    async def _create(
+        user_id: uuid.UUID,
+        title: str = "title",
+        description: Optional[str] = None,
+        ingredients: Optional[List[Dict[str, Any]]] = None,
+    ) -> Recipe:
+        if ingredients is None:
+            ingredients = [
+                {"name": "test1", "quantity": "2"},
+                {"name": "test2", "quantity": "2"},
+            ]
+
+        async for session in _get_test_db():
+            recipe = Recipe(
+                title=title,
+                description=description,
+                user_id=user_id
+            )
+            session.add(recipe)
+            await session.flush()
+
+            result = await session.execute(
+                select(Recipe)
+                .options(
+                    selectinload(Recipe.ingredients).selectinload(RecipeIngredient.ingredient),
+                    selectinload(Recipe.author),
+                )
+                .where(Recipe.recipe_id == recipe.recipe_id)
+            )
+            full_recipe = result.scalar_one()
+
+            for ing in ingredients:
+                q = await session.execute(
+                    select(Ingredient).where(Ingredient.name == ing["name"])
+                )
+                ingr_obj = q.scalar_one_or_none()
+                if not ingr_obj:
+                    ingr_obj = Ingredient(name=ing["name"])
+                    session.add(ingr_obj)
+                    await session.flush()
+
+                full_recipe.ingredients.append(
+                    RecipeIngredient(
+                        ingredient=ingr_obj,
+                        quantity=ing["quantity"],
+                    )
+                )
+
+            await session.commit()
+            return full_recipe
+
+    return _create
+
+
 def create_test_auth_headers_for_user(user_id: str, scopes: Optional[List[str]] = None) -> dict[str, str]:
     access_token = create_access_token(user_id, scopes)
     return {"Authorization": f"Bearer {access_token}"}
+
+
+def image_file(filename: str) -> io.BytesIO:
+    path = Path(__file__).parent / "data" / filename
+    data = path.read_bytes()
+    bio = io.BytesIO(data)
+    bio.name = filename
+    return bio

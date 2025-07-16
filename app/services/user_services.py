@@ -37,9 +37,6 @@ class UserService:
 
     async def update_user(self, current_user: User, user_update: UserUpdate) -> User:
         dict_params = user_update.model_dump(exclude_unset=True)
-        birthday = dict_params["birthday"]
-        if birthday:
-            dict_params["birthday"] = datetime.datetime.strptime(birthday, "%Y-%m-%d").date()
         updated_user = await self.repository.update_active_user_by_user_id(current_user.user_id, dict_params)
         if not updated_user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User not found")

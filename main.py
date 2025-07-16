@@ -5,9 +5,9 @@ import sentry_sdk
 import uvicorn
 import logging
 import httpx
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import RequestValidationError, HTTPException
 
-from app.routes.exceptions import custom_validation_exception_handler
+from app.routes.exceptions import custom_validation_exception_handler, custom_http_exception_handler
 from config import Config
 
 from fastapi import FastAPI, Response, APIRouter
@@ -27,7 +27,8 @@ APP_NAME = "fastapi"
 app = FastAPI(
     title="Recipe Share",
     exception_handlers={
-        RequestValidationError: custom_validation_exception_handler
+        RequestValidationError: custom_validation_exception_handler,
+        HTTPException: custom_http_exception_handler
     }
 )
 

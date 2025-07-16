@@ -1,5 +1,4 @@
 import re
-import uuid
 from datetime import datetime, date
 from typing import Optional
 
@@ -10,44 +9,35 @@ from starlette import status
 from app.schemas.responses.user_schema_resp import LETTER_MATCH_PATTERN, PASSWORD_PATTERN
 
 
-DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    birthday: Optional[str] = None
+    birthday: Optional[date] = None
     phone: Optional[str] = None
     about: Optional[str] = None
 
     @model_validator(mode="before")
     def at_least_one_field(cls, values):
-        if not values or all(v is None for v in values.values()):
+        if not values:
             raise ValueError("at least one field must be provided")
         return values
 
     @field_validator("first_name", "last_name")
     @classmethod
     def validate_name_and_surname(cls, value: str):
+        if value is None:
+            return value
         if not LETTER_MATCH_PATTERN.match(value):
             raise ValueError("must contain only letters")
+        return value
 
     @field_validator("birthday")
     @classmethod
     def validate_birthday_format(cls, v):
         if v is None:
             return v
-        if not DATE_PATTERN.match(v):
-            raise ValueError("Must be in YYYY-MM-DD format")
-        try:
-            parsed = datetime.strptime(v, "%Y-%m-%d").date()
-        except ValueError:
-            raise ValueError("Invalid date")
-
-        today = date.today()
-        if parsed >= today:
+        if v >= date.today():
             raise ValueError("Birthday must be before today")
-
         return v
 
 
