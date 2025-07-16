@@ -1,13 +1,6 @@
 import uuid
-
 import cloudinary
 import cloudinary.uploader
-
-from typing import Optional
-
-from fastapi import APIRouter, Security, Depends, status, Body, UploadFile, Query
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import Config
 from app.database.models import User
@@ -22,6 +15,10 @@ from app.schemas.responses.user_schema_resp import UserResponse
 from app.services.auth_services.dependencies import get_current_user
 from app.services.recipe_service import RecipeService
 from app.services.user_services import UserService
+
+from typing import Optional
+from fastapi import APIRouter, Security, Depends, status, UploadFile, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 cloudinary.config(
     cloud_name=Config.CLOUD_NAME,
@@ -45,7 +42,7 @@ async def read_my_profile(current_user: User = Security(get_current_user, scopes
     )
 
 
-@profile_router.patch("/update-profile", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
+@profile_router.patch("/update", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
 async def update_user(
         user_update: UserUpdate,
         session: AsyncSession = Depends(get_db),
@@ -56,6 +53,49 @@ async def update_user(
         success=True,
         data=UserResponse.model_validate(user),
         message="Your profile data was updated successfully"
+    )
+
+
+@profile_router.post("/my-recipes/upload", status_code=status.HTTP_201_CREATED)
+async def post_recipe(
+        body: RecipeCreate,
+        session: AsyncSession = Depends(get_db),
+        current_user: User = Security(get_current_user, scopes=["user", "user:verified"])
+) -> APIResponse:
+
+    recipe = await RecipeRepository(session).create_recipe(
+        user_id=current_user.user_id,
+        body=body
+    )
+
+    await RecipeRepository(session).add_ingredients(
+        recipe=recipe,
+        ingredients_data=body.ingredients,
+    )
+
+    await session.commit()
+
+    return APIResponse(
+        success=True,
+        data=RecipeResponse.model_validate(recipe),
+        message="Recipe created successfully"
+    )
+
+
+@profile_router.put("/my-recipes/update-photo", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
+async def update_photo(
+        file: Optional[UploadFile] = None,
+        recipe_id: uuid.UUID = Query(...),
+        session: AsyncSession = Depends(get_db),
+        current_user: User = Security(get_current_user, scopes=["user", "user:verified"])
+):
+    recipe, action = await (RecipeService(RecipeRepository(session)).
+                            update_recipe_photo(recipe_id, file, current_user, session))
+
+    return APIResponse(
+        success=True,
+        message=f"Recipe photo successfully {action}",
+        data=RecipeResponse.model_validate(recipe)
     )
 
 
@@ -73,32 +113,6 @@ async def read_my_recipes(
     )
 
 
-@profile_router.post("/my-recipes/upload", status_code=status.HTTP_201_CREATED)
-async def post_recipe(
-        body: RecipeCreate = Body(...),
-        file: Optional[UploadFile] = None,
-        session: AsyncSession = Depends(get_db),
-        current_user: User = Security(get_current_user, scopes=["user", "user:verified"])
-) -> RecipeResponse:
-    image_url = None
-    if file:
-        result = cloudinary.uploader.upload(file.file)
-        image_url = result['secure_url']
-
-    recipe = await RecipeRepository(session).create_recipe(
-        user_id=current_user.user_id,
-        body=body,
-        image_url=image_url
-    )
-
-    await RecipeRepository(session).add_ingredients(
-        recipe=recipe,
-        ingredients_data=body.ingredients,
-    )
-
-    return RecipeResponse.model_validate(recipe)
-
-
 @profile_router.patch("/my-recipes/update", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
 async def update_recipe(
         recipe_update: RecipeUpdate,
@@ -114,21 +128,4 @@ async def update_recipe(
         success=True,
         data=RecipeResponse.model_validate(updated_recipe),
         message="Recipe was updated successfully"
-    )
-
-
-@profile_router.put("/my-recipes/update-photo", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
-async def update_photo(
-        file: Optional[UploadFile] = None,
-        recipe_id: uuid.UUID = Query(...),
-        session: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)
-):
-    recipe, action = await (RecipeService(RecipeRepository(session)).
-                            update_recipe_photo(recipe_id, file, current_user, session))
-
-    return APIResponse(
-        success=True,
-        message=f"Recipe photo successfully {action}",
-        data=RecipeResponse.model_validate(recipe)
     )

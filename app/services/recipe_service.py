@@ -1,8 +1,9 @@
 import uuid
-from typing import Optional
+import filetype
 import cloudinary
 import cloudinary.uploader
 
+from typing import Optional, IO
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,7 +64,10 @@ class RecipeService:
             raise HTTPException(status_code=403, detail="You can't modify others' recipes")
 
         if file:
+            validate_file_size_type(file)
+            file.file.seek(0)
             # Загружаем в Cloudinary
+            print(file)
             result = cloudinary.uploader.upload(file.file)
             image_url = result["secure_url"]
             recipe.image_url = image_url
@@ -77,3 +81,34 @@ class RecipeService:
         await session.commit()
         await session.refresh(recipe)
         return recipe, action
+
+
+def validate_file_size_type(file: UploadFile):
+    FILE_SIZE = 2097152  # 2MB
+
+    accepted_file_types = ["image/png", "image/jpeg", "image/jpg", "image/heic", "image/heif", "image/heics", "png",
+                           "jpeg", "jpg", "heic", "heif", "heics"
+                           ]
+    file_info = filetype.guess(file.file)
+    if file_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unable to determine file type",
+        )
+
+    detected_content_type = file_info.extension.lower()
+
+    if (
+            file.content_type not in accepted_file_types
+            or detected_content_type not in accepted_file_types
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported file type",
+        )
+
+    real_file_size = 0
+    for chunk in file.file:
+        real_file_size += len(chunk)
+        if real_file_size > FILE_SIZE:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Too large")

@@ -73,8 +73,8 @@ class Ingredient(Base):
 class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
 
-    recipe_id: Mapped[UUID] = mapped_column( UUID(as_uuid=True), ForeignKey("recipes.recipe_id"), primary_key=True)
-    ingredient_id: Mapped[int] = mapped_column( Integer, ForeignKey("ingredients.ingredient_id"), primary_key=True)
+    recipe_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.recipe_id"), primary_key=True)
+    ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.ingredient_id"), primary_key=True)
     quantity: Mapped[str] = mapped_column(String(50), nullable=False)
     recipe = relationship("Recipe", back_populates="ingredients")
 

@@ -12,18 +12,17 @@ from app.schemas.responses.recipe_schema_resp import IngredientSchema
 
 class RecipeRepository(BaseRepository):
 
-    async def create_recipe(self, user_id: uuid.UUID, body: RecipeCreate, image_url: str) -> Recipe:
+    async def create_recipe(self, user_id: uuid.UUID, body: RecipeCreate) -> Recipe:
         try:
             db_recipe = Recipe(
                 title=body.title,
                 description=body.description,
-                image_url=image_url,
                 user_id=user_id
             )
 
             self.session.add(db_recipe)
             await self.session.flush()
-            return db_recipe
+            return await self.get_recipe_by_id(db_recipe.recipe_id)
         except Exception as e:
             await self.handle_exception(e)
 
