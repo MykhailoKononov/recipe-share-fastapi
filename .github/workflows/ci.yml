@@ -69,6 +69,14 @@ jobs:
           pip install -r requirements.txt
           pip install flake8 pytest
 
+      - name: Start only test DB
+        run: |
+          docker-compose -f docker-compose.yml up -d db_test
+          until docker-compose exec -T db_test pg_isready -U $TUSER; do
+            echo "Waiting for test DB..."
+            sleep 1
+          done
+
       - name: Lint with flake8
         run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
