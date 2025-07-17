@@ -18,8 +18,6 @@ services:
   db_test:
     container_name: "db_test"
     image: postgres:16-alpine
-    env_file:
-      - .env
     restart: always
     environment:
       - POSTGRES_USER=${TUSER}
@@ -101,8 +99,6 @@ services:
       - prometheus
       - loki
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
@@ -124,8 +120,6 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
     restart: always
-    env_file:
-      - .env
     environment:
       - DATA_SOURCE_NAME=postgresql://${EXPORTER_USER}:${EXPORTER_PASS}@db:5432/${DB}?sslmode=disable
     ports:
