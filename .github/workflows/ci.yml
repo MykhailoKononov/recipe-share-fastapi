@@ -71,8 +71,8 @@ jobs:
 
       - name: Start only test DB
         run: |
-          docker compose -f docker-compose-local.yml up -d db_test
-          until docker compose -f docker-compose-local.yml exec -T db_test pg_isready -U $TUSER; do
+          docker compose -f test-build.yml up -d db_test
+          until docker compose -f test-build.yml exec -T db_test pg_isready -U $TUSER; do
             echo "Waiting for test DB..."
             sleep 1
           done
@@ -85,4 +85,4 @@ jobs:
 
       - name: Tear down services
         if: always()
-        run: docker compose -f docker-compose-local.yml down
+        run: docker compose -f test-build.yml down

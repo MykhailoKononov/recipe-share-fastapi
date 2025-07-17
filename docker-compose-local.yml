@@ -122,8 +122,6 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
     restart: always
-    env_file:
-      - .env
     environment:
       - DATA_SOURCE_NAME=postgresql://${EXPORTER_USER}:${EXPORTER_PASS}@db:5432/${DB}?sslmode=disable
     ports:
