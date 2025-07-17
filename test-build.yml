@@ -8,4 +8,4 @@ services:
       - POSTGRES_PASSWORD=${TPASS}
       - POSTGRES_DB=${TDB}
     ports:
-      - "5432:5432"
+      - "5433:5432"
