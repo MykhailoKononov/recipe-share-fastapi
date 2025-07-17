@@ -2,9 +2,48 @@ name: CI Pipeline
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main"]
   pull_request:
-    branches: ["master"]
+    branches: ["main"]
+
+env:
+  DEBUG: ${{ secrets.DEBUG }}
+  HOST_DATABASE_URL: ${{ secrets.HOST_DATABASE_URL }}
+  LOCAL_DATABASE_URL: ${{ secrets.LOCAL_DATABASE_URL }}
+  TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+  USER: ${{ secrets.USER }}
+  PASS: ${{ secrets.PASS }}
+  HOST: ${{ secrets.HOST }}
+  PORT: ${{ secrets.PORT }}
+  DB: ${{ secrets.DB }}
+  TUSER: ${{ secrets.TUSER }}
+  TPASS: ${{ secrets.TPASS }}
+  THOST: ${{ secrets.THOST }}
+  TPORT: ${{ secrets.TPORT }}
+  TDB: ${{ secrets.TDB }}
+  EXPORTER_USER: ${{ secrets.EXPORTER_USER }}
+  EXPORTER_PASS: ${{ secrets.EXPORTER_PASS }}
+  ACCESS_TOKEN_EXPIRES_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRES_MINUTES }}
+  REFRESH_TOKEN_EXPIRES_DAYS: ${{ secrets.REFRESH_TOKEN_EXPIRES_DAYS }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  ALGORITHM: ${{ secrets.ALGORITHM }}
+  SENTRY_URL: ${{ secrets.SENTRY_URL }}
+  CLOUD_NAME: ${{ secrets.CLOUD_NAME }}
+  API_KEY: ${{ secrets.API_KEY }}
+  API_SECRET: ${{ secrets.API_SECRET }}
+  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+  MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+  MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+  MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+  MAIL_PORT: ${{ secrets.MAIL_PORT }}
+  MAIL_FROM: ${{ secrets.MAIL_FROM }}
+  MAIL_FROM_NAME: ${{ secrets.MAIL_FROM_NAME }}
+  MAIL_STARTTLS: ${{ secrets.MAIL_STARTTLS }}
+  MAIL_SSL_TLS: ${{ secrets.MAIL_SSL_TLS }}
+  FORGET_PASSWORD_LINK_EXPIRE_MINUTES: ${{ secrets.FORGET_PASSWORD_LINK_EXPIRE_MINUTES }}
+  BACKEND_URL: ${{ secrets.BACKEND_URL }}
+  GRAFANA_USER: ${{ secrets.GRAFANA_USER }}
+  GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
 
 permissions:
   contents: read
