@@ -18,8 +18,6 @@ services:
   db_test:
     container_name: "db_test"
     image: postgres:16-alpine
-    env_file:
-      - .env
     restart: always
     environment:
       - POSTGRES_USER=${TUSER}
